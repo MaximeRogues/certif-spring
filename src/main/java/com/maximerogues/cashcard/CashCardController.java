@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,8 +23,8 @@ public class CashCardController {
     }
 
     @GetMapping("/{requestedId}")
-    private ResponseEntity<CashCard> findById(@PathVariable Long requestedId) {
-        Optional<CashCard> cashCardOptional = cashCardRepository.findById(requestedId);
+    private ResponseEntity<CashCard> findById(@PathVariable Long requestedId, Principal principal) {
+        Optional<CashCard> cashCardOptional = Optional.ofNullable(cashCardRepository.findByIdAndOwner(requestedId, principal.getName()));
         if (cashCardOptional.isPresent()) {
             return ResponseEntity.ok(cashCardOptional.get());
         } else {
@@ -32,20 +33,10 @@ public class CashCardController {
         // OU return cashCardOptional.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PostMapping
-    private ResponseEntity<CashCard> create(@RequestBody CashCard newCashCard) {
-        CashCard savedCashCard = cashCardRepository.save(newCashCard);
-        return ResponseEntity.created(URI.create("/cashcards/" + savedCashCard.id())).build();
-    }
-
-//    @GetMapping()
-//    private ResponseEntity<Iterable<CashCard>> findAll() {
-//        return ResponseEntity.ok(cashCardRepository.findAll());
-//    }
-
     @GetMapping
-    private ResponseEntity<List<CashCard>> findAll(Pageable pageable) {
-        Page<CashCard> page = cashCardRepository.findAll(
+    private ResponseEntity<List<CashCard>> findAll(Pageable pageable, Principal principal) {
+        Page<CashCard> page = cashCardRepository.findByOwner(
+                principal.getName(),
                 PageRequest.of(
                         pageable.getPageNumber(), // 0 par défaut
                         pageable.getPageSize(),   // 20 par défaut (fonctionnement de Spring Web)
@@ -53,4 +44,18 @@ public class CashCardController {
                 ));
         return ResponseEntity.ok(page.getContent());
     }
+
+    @PostMapping
+    private ResponseEntity<CashCard> create(@RequestBody CashCard newCashCard, Principal principal) {
+        // on ajoute le Owner à la Cashcard
+        CashCard newCashCardWithOwner = new CashCard(null, newCashCard.amount(), principal.getName());
+
+        CashCard savedCashCard = cashCardRepository.save(newCashCardWithOwner);
+        return ResponseEntity.created(URI.create("/cashcards/" + savedCashCard.id())).build();
+    }
+
+//    @GetMapping()
+//    private ResponseEntity<Iterable<CashCard>> findAll() {
+//        return ResponseEntity.ok(cashCardRepository.findAll());
+//    }
 }
