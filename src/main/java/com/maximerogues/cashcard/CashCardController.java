@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URI;
 import java.security.Principal;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/cashcards")
@@ -24,13 +23,11 @@ public class CashCardController {
 
     @GetMapping("/{requestedId}")
     private ResponseEntity<CashCard> findById(@PathVariable Long requestedId, Principal principal) {
-        Optional<CashCard> cashCardOptional = Optional.ofNullable(cashCardRepository.findByIdAndOwner(requestedId, principal.getName()));
-        if (cashCardOptional.isPresent()) {
-            return ResponseEntity.ok(cashCardOptional.get());
-        } else {
-            return ResponseEntity.notFound().build();
+        CashCard cashCard = findCashCard(requestedId, principal);
+        if (cashCard != null) {
+            return ResponseEntity.ok(cashCard);
         }
-        // OU return cashCardOptional.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.notFound().build();
     }
 
     @GetMapping
@@ -54,8 +51,26 @@ public class CashCardController {
         return ResponseEntity.created(URI.create("/cashcards/" + savedCashCard.id())).build();
     }
 
+    @PutMapping("/{requestedId}")
+    private ResponseEntity<Void> putCashCard(@PathVariable Long requestedId, @RequestBody CashCard cashCardData, Principal principal) {
+        // récupération de la cashcard en base
+        CashCard existingCashCard = findCashCard(requestedId, principal);
+        if(existingCashCard != null) {
+            // sauvegarde de la cashcard avec ses nouvelles infos
+            CashCard updatedCashCard = new CashCard(existingCashCard.id(), cashCardData.amount(), principal.getName());
+            cashCardRepository.save(updatedCashCard);
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.notFound().build();
+    }
+
 //    @GetMapping()
 //    private ResponseEntity<Iterable<CashCard>> findAll() {
 //        return ResponseEntity.ok(cashCardRepository.findAll());
 //    }
+
+    private CashCard findCashCard(Long requestedId, Principal principal) {
+        return cashCardRepository.findByIdAndOwner(requestedId, principal.getName());
+    }
 }
