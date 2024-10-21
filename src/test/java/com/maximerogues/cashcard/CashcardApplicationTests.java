@@ -206,4 +206,47 @@ class CashCardApplicationTests {
 				.exchange("/cashcards/102", HttpMethod.PUT, request, Void.class);
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 	}
+
+	@Test
+	@DirtiesContext
+	void shouldDeleteAnExistingCashCard() {
+		// on supprime une cashcard avec son owner
+		// on utilise le exchange plutôt que delete pour récupérer une réponse
+		ResponseEntity<Void> response = restTemplate
+				.withBasicAuth("maxime1", "abc123")
+				.exchange("/cashcards/99", HttpMethod.DELETE, null, Void.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+		// on vérifie que la cashcard est bien supprimée
+		ResponseEntity<String> getResponse = restTemplate
+				.withBasicAuth("maxime1", "abc123")
+				.getForEntity("/cashcards/99", String.class);
+		assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void shouldNotDeleteANonExistingCashCard() {
+		// on supprime une cashcard avec un user non-owner
+		ResponseEntity<Void> response = restTemplate
+				.withBasicAuth("maxime1", "abc123")
+				.exchange("/cashcards/9999", HttpMethod.DELETE, null, Void.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+	}
+
+	@Test
+	@DirtiesContext
+	void shouldNotDeleteAnExistingCashCardFromAnotherOwner() {
+		// on supprime une cashcard avec un user avec un rôle OWNER, mais pas de cette card
+		ResponseEntity<Void> response = restTemplate
+				.withBasicAuth("kumar2", "xyz789")
+				.exchange("/cashcards/99", HttpMethod.DELETE, null, Void.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+		// on vérifie que la cashcard n'a pas été supprimée
+		ResponseEntity<String> getResponse = restTemplate
+				.withBasicAuth("maxime1", "abc123")
+				.getForEntity("/cashcards/99", String.class);
+		assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
 }
